@@ -9,9 +9,10 @@
 <div class="form-group">
     <label>
         User:
-        <input @bind="_userInput" />
+        <input @bind="_username" disabled="@(_disableUsernameChange)" />
     </label>
 </div>
+<br/>
 <div class="form-group">
     <label>
         Message:
@@ -32,8 +33,20 @@
 @code {
     private HubConnection? _hubConnection;
     private readonly List<string> _messages = new();
-    private string? _userInput;
+    private string? _username;
     private string? _messageInput;
+    private bool _disableUsernameChange;
+
+    public bool IsConnected =>
+        _hubConnection?.State == HubConnectionState.Connected;
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hubConnection is not null)
+        {
+            await _hubConnection.DisposeAsync();
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -43,8 +56,8 @@
 
         _hubConnection.On<string, string>("ReceiveMessage", (user, message) =>
         {
-            var encodedMsg = $"{user}: {message}";
-            _messages.Add(encodedMsg);
+            var formattedMessage = $"{user}: {message}";
+            _messages.Add(formattedMessage);
             InvokeAsync(StateHasChanged);
         });
 
@@ -55,18 +68,9 @@
     {
         if (_hubConnection is not null)
         {
-            await _hubConnection.SendAsync("SendMessage", _userInput, _messageInput);
-        }
-    }
-
-    public bool IsConnected =>
-        _hubConnection?.State == HubConnectionState.Connected;
-
-    public async ValueTask DisposeAsync()
-    {
-        if (_hubConnection is not null)
-        {
-            await _hubConnection.DisposeAsync();
+            await _hubConnection.SendAsync("SendMessage", _username, _messageInput);
+            _messageInput = "";
+            _disableUsernameChange = true;
         }
     }
 }
